@@ -25,6 +25,8 @@ maintainer: moncrief@oregonstate.edu
 -- category:
 extra-source-files: CHANGELOG.md
 
+extra-doc-files: readme.md
+
 library
     exposed-modules:
         Logic.Proof
