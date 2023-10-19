@@ -30,6 +30,7 @@ jobs:
         run: |
           cabal configure --enable-tests --enable-benchmarks --disable-documentation
           cabal build --dry-run
+          mkdir ${{ steps.setup.outputs.cabal-store }}
         # The last step generates dist-newstyle/cache/plan.json for the cache key.
 
       - name: Restore cached dependencies
