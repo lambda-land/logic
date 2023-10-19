@@ -30,6 +30,7 @@ extra-doc-files: readme.md
 library
     exposed-modules:
         Logic.Proof
+        Logic.UnificationProof
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -39,7 +40,9 @@ library
     build-depends:
         base,
         mtl,
-        containers
+        containers,
+        transformers,
+        data-fix
 
     hs-source-dirs:
         src
