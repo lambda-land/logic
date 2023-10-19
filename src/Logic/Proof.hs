@@ -150,7 +150,7 @@ suppose j = Node j (map suppose ps)
   where ps = case premises j of { [] -> []; (p:_) -> p }
 
 
-
+-- | Maps a function that takes in each node and children values over a proof tree. 
 forkMap :: (j -> [j] -> j') -> Proof j -> Proof j'
 forkMap f (Node j []) = Node (f j []) []
 forkMap f (Node j js) = Node (f j (map conclusion js)) $ map (forkMap f) js
