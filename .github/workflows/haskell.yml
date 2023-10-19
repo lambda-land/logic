@@ -41,3 +41,9 @@ jobs:
       run: cabal build --enable-tests --enable-benchmarks all
     - name: Run tests
       run: cabal test all
+    - name: Build Docs
+      run: |
+        cabal install haddock
+        cabal haddock
+        echo ${{ runner.os }}
+        cp -a dist-newstyle/build/aarch64-osx/ghc-9.2.7/logic-0.1.0.0/doc/html/logic/. docs/
