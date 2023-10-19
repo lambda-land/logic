@@ -38,6 +38,8 @@ library
     -- other-extensions:
     build-depends:
         base
+        mtl
+        containers
 
     hs-source-dirs:
         src
