@@ -5,7 +5,8 @@ module Logic.UnificationProof (
   STerm (..),
   UTerm (..),
   -- rule interface
-  Rule (Rule),
+  Rule' (Rule),
+  Rule,
   proofs
 ) where
 
@@ -13,6 +14,7 @@ import Data.Maybe (fromMaybe)
 import Control.Monad (forM_, guard)
 import Data.Foldable (traverse_)
 
+import Data.Functor.Identity (Identity (..))
 import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Trans.State.Strict as State
 import Control.Monad.Trans.State.Strict (StateT (StateT), evalStateT, execStateT)
@@ -79,9 +81,10 @@ newVar name =
                            refs
     })]
 
--- turn string variables in the given term into metavariables
-s2u :: Traversable t => STerm t -> Unification t (UTerm t)
-s2u = \t -> evalStateT (walk t) Map.empty where
+-- across a collection of terms:
+-- replace string variables with metavariables
+s2u :: (Traversable t, Traversable f) => f (STerm t) -> Unification t (f (UTerm t))
+s2u = \t -> evalStateT (traverse walk t) Map.empty where
     walk :: Traversable t => STerm t -> StateT (Map String (UTerm t)) (Unification t) (UTerm t)
     walk (STerm t) = UTerm <$> traverse walk t
     walk (SVar s)  = do maybe <- State.gets (Map.lookup s)
@@ -91,12 +94,13 @@ s2u = \t -> evalStateT (walk t) Map.empty where
                                         State.modify (Map.insert s t)
                                         pure t
 
--- turn unsolved metavariables in the given term into string variables
-u2s :: Traversable t => UTerm t -> Unification t (STerm t)
+-- across a collection of terms:
+-- replace unsolved metavariables with string variables
+u2s :: (Traversable t, Traversable f) => f (UTerm t) -> Unification t (f (STerm t))
 u2s = \t -> do dvs <- duplicateVars t
                let needsNumbering s = case dvs Map.! s of Nothing -> True
                                                           Just _  -> False
-               evalStateT (walk needsNumbering t) (Map.empty, IntMap.empty)
+               evalStateT (traverse (walk needsNumbering) t) (Map.empty, IntMap.empty)
   where
     walk :: Traversable t    =>
             (String -> Bool) ->
@@ -122,8 +126,8 @@ u2s = \t -> do dvs <- duplicateVars t
                    State.put (counts', names')
                    pure svar
 
-    duplicateVars :: Traversable t => UTerm t -> Unification t (Map String (Maybe MVar))
-    duplicateVars = \t -> execStateT (walk t) Map.empty where
+    duplicateVars :: (Traversable t, Traversable f) => f (UTerm t) -> Unification t (Map String (Maybe MVar))
+    duplicateVars = \t -> execStateT (traverse_ walk t) Map.empty where
       walk (UTerm t) = traverse_ walk t
       walk (UVar v)  = do
         dereferenced <- lift $ deref' v
@@ -168,17 +172,17 @@ occurs v (UVar v') | v == v'   = pure True
                                       Nothing -> pure False
 occurs v (UTerm t) = or <$> traverse (occurs v) t
 
-data Rule t = Rule [STerm t] (STerm t)
+data Rule' a = Rule a [a] deriving (Functor, Foldable, Traversable)
+type Rule t = Rule' (STerm t)
 
 proofs :: forall t. Unifiable t => [Rule t] -> STerm t -> [Proof (STerm t)]
-proofs rules = \conclusion -> flip evalStateT emptyHeap $ do conclusion' <- s2u conclusion
+proofs rules = \conclusion -> flip evalStateT emptyHeap $ do Identity conclusion' <- s2u (Identity conclusion)
                                                              tree <- search conclusion'
-                                                             traverse @Proof u2s tree -- TODO: this is wrong
+                                                             u2s tree
   where
     -- search :: UTerm t -> Unification t (Proof (UTerm t))
     search conclusion = do
-      Rule premises conclusion' <- lift rules
-      premises' <- traverse s2u premises
-      conclusion'' <- s2u conclusion'
-      unify conclusion conclusion''
+      rule <- lift rules
+      Rule conclusion' premises' <- s2u rule
+      unify conclusion conclusion'
       Node conclusion <$> traverse search premises'
