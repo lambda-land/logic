@@ -30,6 +30,9 @@ extra-doc-files: readme.md
 library
     exposed-modules:
         Logic.Proof
+        Logic.Problem
+        Text.Latex
+
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -44,5 +47,6 @@ library
     hs-source-dirs:
         src
         src/Logic
+        src/Text
 
     default-language:  GHC2021
