@@ -1,4 +1,5 @@
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE FunctionalDependencies #-}
 module Logic.Proof (
   -- * Proof Trees
   Proof(..), pattern Proof, pattern Leaf,
@@ -13,6 +14,7 @@ module Logic.Proof (
 
 import Data.List (intercalate)
 import Data.Maybe (fromJust)
+import Control.Monad.State.Lazy --(MonadState (get, put), State)
 
 
 -- * Proof Trees
@@ -111,16 +113,20 @@ class Explain j where
   --   * @premises j = [p1,p2,...,pn] : tail (premises j) @ if @j@ is provable from the conclusions of @p1, p2, ..., pn@.
   premises :: j -> [[j]]
 
+  comeback :: j -> [Proof j] -> j
+  comeback j _ = j
+
+  {-# MINIMAL premises #-}
 
 -- | Returns a list of all possible proofs of a given judgment.
 proofs :: Explain j => j -> [Proof j]
-proofs j | [[]] <- premises j = [Node j []]
-proofs j = do 
+proofs j | [[]] <- premises j = [Node (comeback j []) []]
+proofs j = do
     ps <- premises j
     let pfs = map proofs ps
-    if or $ map null pfs 
+    if or $ map null pfs
         then []
-        else map (Node j) $ sequence pfs
+        else map (\ps -> Node (comeback j ps) ps) $ sequence pfs
 
 -- | Returns the first proof of a given judgment.
 -- 
@@ -199,10 +205,10 @@ ppProof (Node j ps) = (width, allLines) where
   premIndent = replicate ((width - premisesWidth) `div` 2) ' '
   allLines = (concIndent ++ conclusion) : divider : map (premIndent ++) premisesLines
 
-hideAfterLevel :: Int -> Proof judge -> Maybe (Proof judge) 
-hideAfterLevel n (Node j ps) 
+hideAfterLevel :: Int -> Proof judge -> Maybe (Proof judge)
+hideAfterLevel n (Node j ps)
   | n == 0    = Nothing
-  | otherwise = Just $ Node j (map unjust $ filter (not . null) $ map (hideAfterLevel (n-1)) ps) 
+  | otherwise = Just $ Node j (map unjust $ filter (not . null) $ map (hideAfterLevel (n-1)) ps)
   where unjust (Just x) = x
 
 
