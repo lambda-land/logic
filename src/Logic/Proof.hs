@@ -40,6 +40,10 @@ conclusion (Node j _) = j
 children :: Proof j -> [Proof j]
 children (Node _ ps) = ps
 
+-- | Extract the antecedents of a proof tree.
+antecedents :: Proof j -> [j]
+antecedents = map conclusion . children
+
 
 -- | Get the proof tree with the premises hidden after the \(n\)th level.
 hidePast :: Int -> Proof j -> Proof j
@@ -112,21 +116,33 @@ class Explain j where
   --
   --   * @premises j = [p1,p2,...,pn] : tail (premises j) @ if @j@ is provable from the conclusions of @p1, p2, ..., pn@.
   premises :: j -> [[j]]
+  premises j = map antecedents (proofs j)
 
   comeback :: j -> [Proof j] -> j
   comeback j _ = j
 
-  {-# MINIMAL premises #-}
-
--- | Returns a list of all possible proofs of a given judgment.
-proofs :: Explain j => j -> [Proof j]
-proofs j | [[]] <- premises j = [Node (comeback j []) []]
-proofs j = do
+  -- | Returns a list of all possible proofs of a given judgment.
+  proofs :: j -> [Proof j]
+  proofs j | [[]] <- premises j = [Node (comeback j []) []]
+  proofs j = do
     ps <- premises j
     let pfs = map proofs ps
     if or $ map null pfs
         then []
         else map (\ps -> Node (comeback j ps) ps) $ sequence pfs
+
+  {-# MINIMAL premises | proofs #-}
+
+
+-- | Returns a list of all possible proofs of a given judgment.
+-- proofs :: Explain j => j -> [Proof j]
+-- proofs j | [[]] <- premises j = [Node (comeback j []) []]
+-- proofs j = do
+--     ps <- premises j
+--     let pfs = map proofs ps
+--     if or $ map null pfs
+--         then []
+--         else map (\ps -> Node (comeback j ps) ps) $ sequence pfs
 
 -- | Returns the first proof of a given judgment.
 -- 
